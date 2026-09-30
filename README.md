@@ -1,4 +1,4 @@
-# Incident-Response-Simulation
+.2.# Incident-Response-Simulation
 
 
 **Author:** Dashane James  
@@ -10,7 +10,7 @@
 
 ## 📋 Overview
 
-[This repository documents ]
+[This repository documents a walk through a full IR simulation using NIST framework phases.]
 
 ---
 
@@ -55,67 +55,52 @@
 
 ## 🔬 Tasks / Assessments Performed
 
-### 1. []
+### 1. [Preperation]
 For this task 
 
-# Command used
-[]
-
-
-# Output
-
-
-**Findings:**
-1
-
-### 2. [.]
-[]
-
-# Command used
-[]
-
-
-# Output
+Before the incident, Splunk was configured with an SSH Brute Force Detection alert, TCPDump was available for packet capture, and the lab environment consisted of a Kali Linux as the attacker VM and a Metasploitable 2 target VM on an isolated network. The Splunk alert was the primary detection mechanism that would trigger this response.
 
 
 
-**Findings:**
-0
-### 3. []
-[] 
+### 2. [Detection]
+
+The SSH Brute Force Detection alert in Splunk fired after Medusa logs showed repeated login attempts against 192.168.79.130 on port 22. The attack started at 12:54:28 and succeeded in under one second — the msfadmin account was cracked at 12:54:29 using a targeted wordlist. This was caught by the automated Splunk alert rather than manual discovery, proving the value of having pre-configured SIEM detection in place.
+
+### 3. [Analysis]
+
+Log analysis revealed the following: the targeted account was msfadmin on 192.168.79.130, the attack came from 192.168.79.129, and it succeeded because default credentials were never changed. The attack duration was under one second — the attacker clearly knew what credentials to try, which is consistent with prior reconnaissance. In a real incident the next steps would be checking for lateral movement and data exfiltration.
 
 
-# Command used
-[]
-# Output
+### 4. [Containment]
 
-2
-```
+The immediate action was blocking the attacker's IP at the firewall to cut off further access:
 
-**Findings:**
+sudo iptables -A INPUT -s 192.168.79.129 -j DROP
+sudo iptables -A OUTPUT -d 192.168.79.129 -j DROP
 
-
+The msfadmin account was also flagged for an immediate password reset and SSH access was restricted to trusted IPs only. Important distinction for CySA+: blocking the attacker IP is Containment — it stops the attack but doesn't clean up the damage. That comes next.
 
 
+### 5. [Eradification]
 
-### 4. []
-
-
-#Command
-[]
-
-# Output
-.
+With the attacker blocked, the cleanup phase focused on removing everything they touched: the default msfadmin password was changed immediately, all active SSH sessions from the attacker IP were terminated, the authorized_keys file was audited for any backdoors, and all system accounts and scheduled tasks were reviewed for unauthorized changes. The root cause — default credentials left in place — was addressed by establishing a policy requiring credential changes on all systems before they go live.
 
 
+### 6. [Recovery]
 
-**Findings:** 
+Recovery steps: confirmed the attacker IP was fully blocked with no active sessions remaining, verified the new msfadmin password was working correctly, reviewed system logs for any unauthorized changes made during the compromise window, re-enabled normal SSH access from trusted IPs only, and ran a fresh Nmap scan to confirm the attack surface matched the pre-incident baseline. The system was declared recovered after all checks passed and Splunk monitoring was confirmed active.
 
-### 580. []
+### 7. [Lessons Learned]
 
-For this task
+Three things would have prevented this incident entirely:
 
-### Output
+1. No default credentials — msfadmin:msfadmin should never have been left in place. A simple policy requiring credential changes before any system goes live would have stopped this attack before it started.
+
+2. SSH account lockout — there was no limit on login attempts, which let Medusa try passwords without any resistance. Locking an account after 5 failed attempts in 60 seconds would have blocked the attack even if the attacker had the right password in their wordlist.
+
+3. Real-time alerting — the Splunk Free tier only allows hourly scheduled alerts. This attack succeeded in under one second. In a production SOC, alerts need to fire in real time — not 59 minutes after the breach already happened.
+
+
 
 Port / Service / Vulnerability / NSE Script / Severity / Notes
 
