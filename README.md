@@ -1,4 +1,4 @@
-.2.# Incident-Response-Simulation
+# Incident-Response-Simulation
 
 
 **Author:** Dashane James  
