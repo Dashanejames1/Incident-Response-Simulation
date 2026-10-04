@@ -2,15 +2,15 @@
 
 
 **Author:** Dashane James  
-**Lab Environment:** [e.g. VMware Workstation | Kali Linux | Metasploitable 2]  
-**Purpose:** [The goal of this repository is to ..]
+**Lab Environment:** [VMware Workstation | Kali Linux | Metasploitable 2]  
+**Purpose:** The goal of this repository is to walk through a full IR simulation using the NIST framework phases.
 **Status:** 🔵 Completed
 
 ---
 
 ## 📋 Overview
 
-[This repository documents a walk through a full IR simulation using NIST framework phases.]
+[Utilized a Kali Linux attacker VM, then used Medusa to Brute Force SSH on a Metasploitable 2 target, compromising the default msfadmin account in under a second. A Splunk Enterprise alert detected the activity, and the response is documented across seven steps: preparation, detection, analysis, containment, eradication, recovery, and lessons learned. Finding are mapped to MITRE ATT&CK.]
 
 ---
 
@@ -30,10 +30,11 @@
 
 ## 🛠️ Tools Used
 
-- **Nmap** — Used for both standard scanning and running NSE (Nmap Scripting Engine) scripts to detect and, in one case, actively exploit vulnerabilities
-- **NSE (Nmap Scripting Engine)** — Ran default (`-sC`), targeted (`ftp-anon`, `smb-vuln*`), and broad (`vuln`) script categories against the target
-- **NVD (National Vulnerability Database)** — Referenced to research CVE details, CVSS scores, and attack vectors for confirmed vulnerabilities
-
+- **SPLUNK Enterprise** — Log aggregation and alerting 
+- **TCPdump** — Packet capture (on standby)  
+- **iptables** — Host firewall for containment
+- **Nmap** - Post-incident baseline 
+- **Medusa**  - 
 ---
 
 ## 📁 Repository Structure
@@ -55,42 +56,63 @@
 
 ## 🔬 Tasks / Assessments Performed
 
-### 1. [Preperation]
-For this task 
+### 1. Preparation: Document the tools, policies, and contact list
 
-Before the incident, Splunk was configured with an SSH Brute Force Detection alert, TCPDump was available for packet capture, and the lab environment consisted of a Kali Linux as the attacker VM and a Metasploitable 2 target VM on an isolated network. The Splunk alert was the primary detection mechanism that would trigger this response.
+Before the incident, Splunk was configured with an SSH Brute Force Detection alert, tcpDump was available for packet capture, iptables served as the host firewall for containment, and Nmap for post-incedent baseline check. The lab environment consisted of a Kali Linux attacker VM and a Metasploitable 2 target VM on an isolated host-only network. The Splunk alert was the primary detection mechanism that would trigger this response.
+
+**Policies**
+
+- Default credentials must be changed before any system goes live.
+- SSH authentication logs are forwarded to the SIEM and retained for review.
+- Any confirmed unauthorized login is escalated to the IR Lead immediately.
+
+**Contact list (simulated roles)**
+
+| Role            | Responsibility                       | Contact         |
+|-----------------|--------------------------------------|-----------------|
+| IR Lead         | Declares the incident, owns response | Simulated / Phone |
+| System Owner    | Approves containment and recovery    | Simulated / Phone  |
+| SOC Analyst     | Triage, log analysis, documentation  | Dashane James / via Email |
+| Management      | Escalation and communication         | Simulated / Phone  |
+
+<img width="638" height="152" alt="Screenshot 2026-09-24 212919" src="https://github.com/user-attachments/assets/07b2ab54-dfcc-4f73-89c7-d39cf4d6481a" />
+
+*SSH Brute Force Detection alert, enabled and scheduled hourly, triggering when results > 0. The modified timestamp reflects a later schedule edit; the alert was created before the test.*
+
+### 2. Detection Phase
+
+The SSH Brute Force Detection alert in Splunk fired after the target's SSH authentication logs showed repeated login attempts from the attacker against 192.168.79.130 on port 22. The attack started at 12:54:28 and succeeded in under one second — the msfadmin account was cracked at 12:54:29 using a targeted wordlist. This was caught by the automated Splunk alert rather than manual discovery, proving the value of having pre-configured SIEM detection in place.
+
+**Limitation:** the alert runs on an hourly schedule, so detection can lag an attack by up to 59 minutes. A production SOC would run this every few minutes or in real time.
 
 
+### 3. Analysis: determine scope, accounts targeted, timeframe, and any succesful logins.
 
-### 2. [Detection]
-
-The SSH Brute Force Detection alert in Splunk fired after Medusa logs showed repeated login attempts against 192.168.79.130 on port 22. The attack started at 12:54:28 and succeeded in under one second — the msfadmin account was cracked at 12:54:29 using a targeted wordlist. This was caught by the automated Splunk alert rather than manual discovery, proving the value of having pre-configured SIEM detection in place.
-
-### 3. [Analysis]
-
-Log analysis revealed the following: the targeted account was msfadmin on 192.168.79.130, the attack came from 192.168.79.129, and it succeeded because default credentials were never changed. The attack duration was under one second — the attacker clearly knew what credentials to try, which is consistent with prior reconnaissance. In a real incident the next steps would be checking for lateral movement and data exfiltration.
+Log analysis revealed the following: the targeted account was msfadmin on 192.168.79.130, the attack came from 192.168.79.129, and it succeeded because default credentials were never changed. The attack duration was under one second (12:54:28 to 12:54:29) — the attacker clearly knew what credentials to try, which is consistent with prior reconnaissance. In a real incident the next steps would be checking for lateral movement and data exfiltration.
 
 
-### 4. [Containment]
+### 4. Containment: Write the firewall rule to block the attacker IP
 
 The immediate action was blocking the attacker's IP at the firewall to cut off further access:
 
 sudo iptables -A INPUT -s 192.168.79.129 -j DROP
 sudo iptables -A OUTPUT -d 192.168.79.129 -j DROP
 
-The msfadmin account was also flagged for an immediate password reset and SSH access was restricted to trusted IPs only. Important distinction for CySA+: blocking the attacker IP is Containment — it stops the attack but doesn't clean up the damage. That comes next.
+The msfadmin account was also flagged for an immediate password reset and SSH access was restricted to trusted IPs only. Blocking the attacker IP is *Containment* — it stops the attack but doesn't clean up the damage. That comes next.
 
 
-### 5. [Eradification]
+### 5. Eradication: Listing what needs to be removed (New accounts, SSH keys, malware)
 
-With the attacker blocked, the cleanup phase focused on removing everything they touched: the default msfadmin password was changed immediately, all active SSH sessions from the attacker IP were terminated, the authorized_keys file was audited for any backdoors, and all system accounts and scheduled tasks were reviewed for unauthorized changes. The root cause — default credentials left in place — was addressed by establishing a policy requiring credential changes on all systems before they go live.
+With the attacker blocked, the cleanup phase focused on removing everything they touched: the default msfadmin password was changed immediately, all active SSH sessions from the attacker IP were terminated, the authorized keys file was audited for any backdoors, and all system accounts and scheduled tasks were reviewed for unauthorized changes. The root cause was the default credentials left in place and were addressed by establishing a policy requiring credential changes on all systems before they go live.
 
 
-### 6. [Recovery]
+### 6. Recovery: Describe recovery and verification process.
 
-Recovery steps: confirmed the attacker IP was fully blocked with no active sessions remaining, verified the new msfadmin password was working correctly, reviewed system logs for any unauthorized changes made during the compromise window, re-enabled normal SSH access from trusted IPs only, and ran a fresh Nmap scan to confirm the attack surface matched the pre-incident baseline. The system was declared recovered after all checks passed and Splunk monitoring was confirmed active.
+During the recovery process: if any integrity check had failed, the target would be rebuilt from a known good vm snapshot rather than cleaned in place.
 
-### 7. [Lessons Learned]
+During the verification process: I confirmed the attacker IP was fully blocked with no active sessions remaining, verified the new msfadmin password was working correctly, reviewed system logs for any unauthorized changes made during the compromise window, re-enabled normal SSH access from trusted IPs only, and ran a fresh Nmap scan to confirm the attack surface matched the pre-incident baseline. The system was declared recovered after all checks passed and Splunk monitoring was confirmed active.
+
+### 7. Lessons Learned
 
 Three things would have prevented this incident entirely:
 
@@ -98,8 +120,7 @@ Three things would have prevented this incident entirely:
 
 2. SSH account lockout — there was no limit on login attempts, which let Medusa try passwords without any resistance. Locking an account after 5 failed attempts in 60 seconds would have blocked the attack even if the attacker had the right password in their wordlist.
 
-3. Real-time alerting — the Splunk Free tier only allows hourly scheduled alerts. This attack succeeded in under one second. In a production SOC, alerts need to fire in real time — not 59 minutes after the breach already happened.
-
+3. Key-only SSH authentication — Disabling password logins removes password guessing as an attack path entirely.
 
 
 Port / Service / Vulnerability / NSE Script / Severity / Notes
@@ -157,22 +178,26 @@ The table above consolidates all of the findings reported during the Nmap --scri
 
 | Action Performed | ATT&CK Tactic | Technique ID | Technique Name |
 |---|---|---|---|
-| Default and targeted script scanning (-sC, ftp-anon, smb-vuln*) | Reconnaissance | T1595 | Active Scanning |
-| Anonymous FTP login confirmed | Initial Access | T1078 | Valid Accounts |
-| vsFTPd backdoor exploitation (root shell via `id` command) | Execution | T1059 | Command and Scripting Interpreter |
-| Root-level access confirmed post-exploitation | Privilege Escalation | T1068 | Exploitation for Privilege Escalation |
+
+**MITRE ATT&CK mapping**
+
+| Technique                          | ID        |
+|------------------------------------|-----------|
+| Brute Force: Password Guessing     | T1110.001 |
+| Valid Accounts: Local Accounts     | T1078.003 |
+| Remote Services: SSH               | T1021.004 |
+
 
 ---
 
-## 🛡️ Defensive Recommendations
+## 🛡️ Defensive Recommendations/Policies
 
 Based on findings, the following remediations would be recommended in a real environment:
 
-1. **vsFTPd 2.3.4 backdoor (Critical)** — Immediately upgrade or replace the FTP service; this version is known to contain an intentional backdoor and should never be used in production.
-2. **Anonymous FTP login allowed** — Disable anonymous access entirely; require authenticated accounts for any FTP access.
-3. **Telnet enabled (plaintext credentials)** — Disable Telnet and replace with SSH for all remote administration.
-4. **SMB message signing disabled** — Enable SMB message signing to prevent tampering and man-in-the-middle attacks on SMB traffic.
-5. **SQL injection on port 80** — Implement input validation/parameterized queries on the web application, and consider a WAF as an additional layer of defense.
+
+- Default credentials must be changed before any system goes live.
+- SSH authentication logs are forwarded to the SIEM and retained for review.
+- Any confirmed unauthorized login is escalated to the IR Lead immediately.
 
 ---
 
