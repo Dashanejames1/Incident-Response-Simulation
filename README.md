@@ -2,7 +2,7 @@
 
 
 **Author:** Dashane James  
-**Lab Environment:** [VMware Workstation | Kali Linux | Metasploitable 2]  
+**Lab Environment:** VMware Workstation | Kali Linux | Metasploitable 2  
 **Purpose:** The goal of this repository is to walk through a full IR simulation using the NIST framework phases.
 **Status:** 🔵 Completed
 
@@ -10,7 +10,7 @@
 
 ## 📋 Overview
 
-[Utilized a Kali Linux attacker VM, then used Medusa to Brute Force SSH on a Metasploitable 2 target, compromising the default msfadmin account in under a second. A Splunk Enterprise alert detected the activity, and the response is documented across seven steps: preparation, detection, analysis, containment, eradication, recovery, and lessons learned. Finding are mapped to MITRE ATT&CK.]
+For this Repository, I utilized a Kali Linux attacker VM, then used Medusa to Brute Force SSH on a Metasploitable 2 target, compromising the default msfadmin account in under a second. A Splunk Enterprise alert detected the activity, and the response is documented across seven steps: preparation, detection, analysis, containment, eradication, recovery, and lessons learned. Finding are mapped to MITRE ATT&CK.
 
 ---
 
@@ -36,21 +36,6 @@
 - **Nmap** - Post-incident baseline 
 - **Medusa**  - 
 ---
-
-## 📁 Repository Structure
-
-```
-[Repo-Name]/
-├── README.md
-├── [folder-1]/
-│   ├── [file1.txt]        # Description of file
-│   └── [file2.md]         # Description of file
-├── [folder-2]/
-│   ├── [file3.md]         # Description of file
-│   └── [file4.txt]        # Description of file
-└── reports/
-    └── [final-report.md]  # Full assessment report
-```
 
 ---
 
@@ -201,58 +186,18 @@ Based on findings, the following remediations would be recommended in a real env
 
 ---
 
-## 📚 CySA+ Exam Relevance
-
-This lab directly maps to the following CompTIA CySA+ (CS0-003) exam domains:
-
-| Domain | Coverage |
-
-| Security Operations (33%) | Hands-on use of Nmap and NSE scripts to perform reconnaissance and identify live services and misconfigurations |
-| Vulnerability Management (30%) | Running vulnerability-check scripts (`smb-vuln*`, `vuln`), interpreting results, and cross-referencing CVE/CVSS data from NVD |
-| Incident Response (20%) | Recognizing confirmed exploitation (root access via vsFTPd backdoor) as evidence of active compromise |
-| Reporting & Communication (17%) | Documenting findings by severity in a structured, readable format for technical and non-technical audiences |
-
 ---
 
 ## 🔑 Technical Notes
 
-> # Note: not all NSE vulnerability scripts behave the same way — most only detect and report (true/false), while a small number (like ftp-vsftpd-backdoor) actually attempt live exploitation. Always check script documentation or output carefully rather than assuming uniform behavior.
->
-> "Always add the -n flag to Nmap scans in this VMware environment to prevent DNS resolution hangs."]
-> 
-> -sP and -sT contradict eachother (Can't be used together because -sP means just do a ping/host-discovery sweep, skip ports entirely but -sT tells Nmap to do a full TCP connect port scan. These commands contradict eachother.)
 
-```bash
+
 
 # Any important commands or workarounds
 [-sC]
 [-Pn]
 
-# Any important commands or workarounds
 
-# Task 1: Run default scripts (-sC) against key ports
-sudo nmap -sC -Pn --disable-arp-ping -n -p 21,22,80,445 192.168.79.130
-
-# Task 2: Check FTP for anonymous login specifically
-sudo nmap --script ftp-anon -Pn --disable-arp-ping -n -p 21 192.168.79.130
-
-# Task 3: Run all SMB vulnerability scripts against port 445
-sudo nmap --script smb-vuln* -Pn --disable-arp-ping -n -p 445 192.168.79.130
-
-# Task 4: Run the full vuln script category across all open ports
-sudo nmap --script vuln -Pn --disable-arp-ping -n 192.168.79.130
-
-# Workaround: -p requires a value directly after it — omitting the port number
-# (e.g. "-p 192.168.79.130") causes Nmap to misinterpret the target IP as a
-# port specification. To scan all ports instead of a specific one, remove
-# the -p flag entirely rather than leaving it empty.
-
-# Workaround: always use -n in this lab to prevent DNS resolution hangs,
-# since the isolated Host-Only network has no real DNS server.
-
-# Note: --script <name>* (wildcard) runs every NSE script matching that
-# name pattern — useful for running a whole category (e.g. smb-vuln*)
-# in a single command instead of specifying each script individually.
 ```
 
 ---
@@ -261,17 +206,11 @@ sudo nmap --script vuln -Pn --disable-arp-ping -n 192.168.79.130
 
 [1-2 sentences about how this fits into your overall portfolio and career goals.]
 
-This repository is part of my broader cybersecurity portfolio demonstrating practical, hands-on vulnerability assessment skills from initial scanning through confirmed exploitation as I work toward a career as a cybersecurity analyst.
 
-This repository is important because here we have built up to the point of having live proof of the actual exploitation by an automated Nmap script for the CVE-2011-2523. In a past NVD task I researched this exact vulnerability with a CVSS score of 9.8 now this has come full circle and we found out how this exact vulnerability is exploited and root access was acheived. 
 
 
 **Related repositories:**
-- Nmap-Host-Discovery-and-Lab-Baseline — Established a baseline of the lab network using ping sweeps and host discovery, documenting the target environment before deeper scanning began
-- Nmap-Scan-Types-SYN-vs-TCP-vs-UDP — Compared SYN, TCP connect, and UDP scan types against the target, examining differences in speed, stealth, and reliability
-- Service-Version-Detection-and-OS-Fingerprinting — Identified exact software versions on Metasploitable and researched real CVEs tied to them, including the vsFTPd backdoor later exploited in this repository
-- Wireshark-Capture-and-Analyze-Traffic — Captured and analyzed live packet traffic, including plaintext credential exposure over Telnet
-- TCPDump-CLI-Packet-Capture — Used TCPDump from the command line to capture traffic (including a live Telnet session showing plaintext credential exposure), and demonstrated saving captures to a `.pcap` file for later analysis in Wireshark
+
 
 ---
 
